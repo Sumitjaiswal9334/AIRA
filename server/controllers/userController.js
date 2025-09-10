@@ -6,7 +6,7 @@ import Chat from "../models/Chat.js";
 // generate jwt
 const generateToken = (id)=>{
     return jwt.sign({id}, process.env.JWT_SECRET,{
-        expiresIN:'30d'
+        expiresIn:'24h'
     })
 }
 
@@ -22,7 +22,7 @@ export const registerUser = async (req, res)=>{
         if(userExists){
             return res.json({success : false, message: "User already exists"})
         }
-        const user = await User.create({nmae, email, password})
+        const user = await User.create({name, email, password})
 
         const token = generateToken(user._id)
         res.json({success: true, token})
@@ -42,7 +42,7 @@ export const loginUser = async (req,res)=>{
 
             if(isMatch){
                 const token = generateToken(user._id);
-                return res.json({success:true, message:error.message})
+                return res.json({success:true, token})
             }
         }
         return res.json({success:false, message:"Invalid email or password"})
@@ -74,7 +74,7 @@ export const getPublishedImages = async (req, res) =>{
                 }
             },
             {
-                $projects: {
+                $project: {
                     _id: 0,
                     imageUrl: "$messages.content",
                     userName: "$userName"
@@ -88,3 +88,4 @@ export const getPublishedImages = async (req, res) =>{
 
     }
 }
+

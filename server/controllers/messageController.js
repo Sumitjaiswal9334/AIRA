@@ -5,50 +5,53 @@ import axios from "axios"
 import openai from "../configs/openai.js"
 
 
-// text-based ai chat message controller
-export const textMessageController = async (req,res)=>{
+//text-based ai chat message controller
+export const textMessageController = async (req, res) => {
     try {
-        const userId = req.user._id
+        const userId = req.user._id;
 
         // check credits
-        if(req.user.credits < 1){
-            return res.json({success: false, message: "You don't have enough credits to use this feature"})
+        if (req.user.credits < 1) {
+            return res.json({ success: false, message: "You don't have enough credits to use this feature" });
         }
 
-        const {chatId, prompt} = req.body
+        const { chatId, prompt } = req.body;
 
-        const chat = await Chat.findOne({userId, _id:chatId})
-        chat.messages.push({role: "user", content: prompt, timestamp: Date.now(), isImage: false})
+        if (!chatId || !prompt) {
+            return res.status(400).json({ success: false, message: "chatId and prompt are required" });
+        }
 
-        const {choices} = await openai.chat.completions.create({
-        model: "gemini-2.0-flash",
-        messages: [
-           
-            {
-                role: "user",
-                content: prompt,
-        },
-    ],
-});
+        const chat = await Chat.findOne({ userId, _id: chatId });
+        if (!chat) {
+            return res.status(404).json({ success: false, message: "Chat not found" });
+        }
 
-    const reply = {...choices[0].message, timestamp: Date.now(), isImage: false}
-    res.json({success: true, reply})
+        chat.messages.push({ role: "user", content: prompt, timestamp: Date.now(), isImage: false });
 
+        const { choices } = await openai.chat.completions.create({
+            model: "gemini-2.0-flash",
+            messages: [
+                { role: "user", 
+                    content: prompt, 
+                },
+            ],
+        });
 
-    chat.messages.push(reply)
-    await chat.save()
+        const reply = { ...choices[0].message, timestamp: Date.now(), isImage: false };
 
-    await User.updateOne({_id: userId}, {$inc: {credits: -1}})
+        // push AI reply & save
+        chat.messages.push(reply);
+        await chat.save();
 
-    res.json({success: true, reply})
+        // deduct credits
+        await User.updateOne({ _id: userId }, { $inc: { credits: -1 } });
 
-
-    } catch (error){
-        res.json({success: false, message: error.message})
-
+        res.json({ success: true, reply });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
     }
+};
 
-}
 
 // image generation message controller
 export const imageMessageController = async (req,res) =>{
@@ -70,7 +73,7 @@ export const imageMessageController = async (req,res) =>{
             isImage: false});
 
             // encode the prompt
-            const encodedPrompt = encodedURIComponent(prompt)
+            const encodedPrompt = encodeURIComponent(prompt)
 
             // construct imagekit AI generation url
             const generatedImageUrl = `${process.env.IMAGEKIT_URL_ENDPOINT}/
@@ -111,3 +114,4 @@ export const imageMessageController = async (req,res) =>{
 
     }
 }
+

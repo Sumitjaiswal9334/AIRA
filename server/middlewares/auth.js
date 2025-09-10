@@ -1,24 +1,58 @@
-import jwt from 'jsonwebtoken'
+// import jwt from 'jsonwebtoken'
+// import User from '../models/User.js';
+
+// export const protect = async (req, res, next) => {
+//     let token = req.headers.authorization;
+
+//     try{
+//         const decoded = jwt.verify(token, process.env.JWT_SECRET)
+//         const userId = decoded.id;
+
+//         const user = await User.findById(userId)
+
+//         if(!user){
+//             return res.json({success:false, message:"Not authorised, user not found"});
+//         }
+
+//         req.user = user;
+//         next()
+//     } catch (error){
+//         res.status(401).json({messages: "Not authorized, token failed"})
+
+//     }
+
+// }
+
+
+import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
 
 export const protect = async (req, res, next) => {
     let token = req.headers.authorization;
 
-    try{
-        const decode = jwt.verify(token, process.env.JWT_SECRET)
-        const userId = decode.id;
+    try {
+        // ✅ Extract token if starts with "Bearer "
+        if (token && token.startsWith("Bearer ")) {
+            token = token.split(" ")[1];
+        }
 
-        const user = await User.findOne(userId)
+        if (!token) {
+            return res.status(401).json({ success: false, message: "Not authorized, token missing" });
+        }
 
-        if(!user){
-            return res.json({success:false, message:"Not authorised, user not found"});
+        // ✅ Verify token
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+        // ✅ Fetch user
+        const user = await User.findById(decoded.id).select("-password");
+        if (!user) {
+            return res.status(401).json({ success: false, message: "Not authorized, user not found" });
         }
 
         req.user = user;
-        next()
-    } catch (error){
-        res.status(401).json({messages: "Not authorized, token failed"})
-
+        next();
+    } catch (error) {
+        return res.status(401).json({ success: false, message: "Not authorized, token failed" });
     }
+};
 
-}
